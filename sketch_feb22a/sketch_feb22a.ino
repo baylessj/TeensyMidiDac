@@ -1,9 +1,21 @@
-void setup() {
-  // put your setup code here, to run once:
+int ledPin = 13;
 
+void OnNoteOn(byte channel, byte note, byte velocity)
+{digitalWrite(ledPin, HIGH);}
+
+void OnNoteOff(byte channel, byte note, byte velocity)
+{digitalWrite(ledPin, LOW);}
+
+void setup()
+{
+  pinMode(ledPin, OUTPUT);
+  usbMIDI.setHandleNoteOff(OnNoteOff);
+  usbMIDI.setHandleNoteOn(OnNoteOn) ;
+  digitalWrite(ledPin, HIGH);
+  digitalWrite(ledPin, LOW);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-
+void loop()
+{
+  usbMIDI.read();
 }
