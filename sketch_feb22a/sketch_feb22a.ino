@@ -42,12 +42,43 @@ note_t notes[numNotes] = {
   {.desc="C4", .volt=0.6622},
 };
 
-void commandVel(int ivel, int ichannel) {
-  
+const float MAX_GLIDE_TIME = 1500;
+float getGlideTime() {
+  int val = analogRead(glideIn);
+  float step = val
+  return 1.0; // placeholder until scaling is determined
 }
 
-void commandNote(int ivolt, int ichannel) {
+void commandVel(int ivel) {
+    
+}
+
+float prevVolt = 0;
+int prevNote = 0;
+float step = 0xffff;
+void commandNote(int inote) {
+  note_t note = notes[inote];
+  float desVolt = note.volt;
+ 
+  if (inote != prevNote && getGlideTime()) {
+    step = abs(notes[prevNote].volt - notes[inote].volt) / getGlideTime();
+  } else if (!getGlideTime()) {
+    // no slew
+    step = 0xffff;
+  }
+
+  // Slew according to the glide param
+  if (desVolt - prevVolt > step) {
+    desVolt = prevVolt + step;
+  } else if (desVolt - prevVolt < -step) {
+    desVolt = prevVolt - step;
+  }
   
+  uint16_t cmdVolt = (desVolt / 5.0) * 4095; // convert to 0-4095 range
+  analogWrite(dacOut, cmdVolt);
+  
+  prevVolt = desVolt;
+  prevNote = inote;
 }
 
 void setup() {
@@ -69,18 +100,15 @@ void loop() {
       case usbMIDI.NoteOff:
       case usbMIDI.NoteOn:
         int noteMsg = usbMIDI.getData1() - 21; // A0 = 21, Top Note = 108
-        int channel = usbMIDI.getChannel()-1;
+        int channel = usbMIDI.getChannel() - 1;
 
         if (channel != 0) return;  // Keyboard should be configured to MIDI channel 0
-        if ((noteMsg < 0) || (noteMsg > 87)) break;  // Only 88 notes of keyboard are supported
+        if ((noteMsg < 0) || (noteMsg > 59)) break;  // Only 60 notes of keyboard are supported
 
         int velocity = usbMIDI.getData2();
         
-        note_t note = notes[noteMsg];
-        int volt = note.volt;
-        
-        commandVel(velocity, channel);
-        commandNote(volt, channel);
+        commandVel(velocity);
+        commandNote(noteMsg);
             
         break;
     }
