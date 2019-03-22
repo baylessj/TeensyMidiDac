@@ -3,9 +3,11 @@
  *  
  *  Allows for input from a MIDI keyboard over USB and output over the Teensy's DAC
  */
-int led = 13;
-int dacOut = A14;
-int glideIn = A8;
+const int led = 13;
+const int dacOut = A14;
+const int glideIn = A8;
+
+const int loopDt = 50; // in ms
 
 static const int numNotes = 60;
 
@@ -45,12 +47,7 @@ note_t notes[numNotes] = {
 const float MAX_GLIDE_TIME = 1500;
 float getGlideTime() {
   int val = analogRead(glideIn);
-  float step = val
-  return 1.0; // placeholder until scaling is determined
-}
-
-void commandVel(int ivel) {
-    
+  return 1500 * (val / 4095);
 }
 
 float prevVolt = 0;
@@ -61,7 +58,7 @@ void commandNote(int inote) {
   float desVolt = note.volt;
  
   if (inote != prevNote && getGlideTime()) {
-    step = abs(notes[prevNote].volt - notes[inote].volt) / getGlideTime();
+    step = abs(notes[prevNote].volt - notes[inote].volt) / (getGlideTime() / loopDt);
   } else if (!getGlideTime()) {
     // no slew
     step = 0xffff;
@@ -87,33 +84,31 @@ void setup() {
   analogWriteResolution(12);
 }
 
+int noteMsg = 60; // larger than possible not values
 void loop() {
   if (usbMIDI.read()) {
     digitalWrite(led, HIGH);
-  } else {
-    digitalWrite(led, LOW);
-  }
 
     byte type = usbMIDI.getType();
     switch (type) {
         
       case usbMIDI.NoteOff:
+        break;
       case usbMIDI.NoteOn:
-        int noteMsg = usbMIDI.getData1() - 21; // A0 = 21, Top Note = 108
+        noteMsg = usbMIDI.getData1() - 21; // A0 = 21, Top Note = 108
         int channel = usbMIDI.getChannel() - 1;
 
         if (channel != 0) return;  // Keyboard should be configured to MIDI channel 0
-        if ((noteMsg < 0) || (noteMsg > 59)) break;  // Only 60 notes of keyboard are supported
-
-        int velocity = usbMIDI.getData2();
-        
-        commandVel(velocity);
-        commandNote(noteMsg);
-            
         break;
     }
+  } else {
+    digitalWrite(led, LOW);
+  }
+
+  if ((noteMsg < 0) || (noteMsg > 59)) continue;  // Only 60 notes of keyboard are supported
+  commandNote(noteMsg);
   
   analogWrite(dacOut, 2000); // test output for the DAC, range is 0-4095 (this is unique to the teensy)
 
-  delay(50);
+  delay(loopDt);
 }
