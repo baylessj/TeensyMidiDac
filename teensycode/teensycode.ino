@@ -91,7 +91,13 @@ float prevVolt = 0;
 int prevNote = 0;
 float step = 0xffff;
 void updateOutput() {
-  if ((curNote < 0) || (curNote > 59)) return; // don't output a note outside of proper range
+  if (curNote == NO_NOTE) {
+    analogWrite(dacOut, 0);
+    return;
+  } else if ((curNote < 0) || (curNote > 59)) {
+    return; // don't output a note outside of proper range
+  }
+  
   note_t note = notes[curNote];
   float desVolt = note.volt;
  
@@ -109,7 +115,7 @@ void updateOutput() {
     desVolt = prevVolt - step;
   }
   
-  uint16_t cmdVolt = (desVolt / 5.0) * 4095; // convert to 0-4095 range
+  uint16_t cmdVolt = (float)(desVolt / 5.0) * 4095; // convert to 0-4095 range
   analogWrite(dacOut, cmdVolt);
   
   prevVolt = desVolt;
